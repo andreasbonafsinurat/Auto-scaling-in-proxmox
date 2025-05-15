@@ -1,0 +1,44 @@
+pip install flask
+sudo apt update
+sudo apt install terraform
+
+
+#file terdapat di folder auto scaling
+from flask import Flask, request
+import subprocess
+import logging
+
+# Konfigurasi
+TERRAFORM_DIR = "/path/to/terraform"  # Ganti dengan path ke direktori terraform kamu
+LOG_FILE = "/var/log/webhook_scale.log"  # Lokasi log
+
+# Setup Flask app
+app = Flask(__name__)
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format='%(asctime)s %(message)s')
+
+@app.route('/scale', methods=['POST'])
+def scale():
+    data = request.get_json()  # Mengambil data POST yang dikirim oleh Alertmanager
+
+    # Cek alert apakah aktif
+    alerts = data.get("alerts", [])
+    for alert in alerts:
+        status = alert.get("status")
+        name = alert.get("labels", {}).get("alertname", "")
+        if status == "firing" and name == "HighCPUUsage":
+            logging.info("Menerima alert: HighCPUUsage - Menjalankan Terraform")
+            try:
+                subprocess.run(["terraform", "apply", "-auto-approve"], cwd=TERRAFORM_DIR, check=True)
+                logging.info("Terraform berhasil dijalankan untuk provisioning VM baru.")
+            except subprocess.CalledProcessError as e:
+                logging.error(f"Terraform gagal: {e}")
+            break
+
+    return "", 200  # Mengirimkan response OK
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)  # Jalankan server di port 5000
+
+#jalankan py nya
+python3 scale_webhook_server.py
+
