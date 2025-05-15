@@ -1,0 +1,11 @@
+groups:
+  - name: auto-scaling-alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: avg(rate(node_cpu_seconds_total{mode="user"}[1m])) > 0.8
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU usage tinggi"
+          description: "Rata-rata CPU usage melebihi 80% selama 1 menit."
